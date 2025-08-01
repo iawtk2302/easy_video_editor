@@ -15,6 +15,9 @@ class GenerateThumbnailCommand: Command {
             ))
             return
         }
+
+        let width  = (arguments["width"]  as? NSNumber)?.intValue
+        let height = (arguments["height"] as? NSNumber)?.intValue        
         
         let operationId = OperationManager.shared.generateOperationId()
         
@@ -30,6 +33,8 @@ class GenerateThumbnailCommand: Command {
                 let outputPath = try VideoUtils.generateThumbnail(
                     videoPath: videoPath,
                     positionMs: positionMs.int64Value,
+                    width: width,
+                    height: height,
                     quality: quality.intValue,
                     workItem: workItem
                 )

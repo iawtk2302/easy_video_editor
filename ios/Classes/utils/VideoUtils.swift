@@ -757,6 +757,19 @@ class VideoUtils {
         let asset = AVAsset(url: URL(fileURLWithPath: videoPath))
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
+
+        // Tell AVFoundation how large the bitmap may be
+        if width != nil || height != nil {
+            switch (width, height) {
+            case let (w?, h?):
+                generator.maximumSize = CGSize(width: w, height: h)      // both → bounding box
+            case let (w?, nil):
+                generator.maximumSize = CGSize(width: CGFloat(w), height: CGFloat.greatestFiniteMagnitude) // width only
+            case let (nil, h?):
+                generator.maximumSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat(h)) // height only
+            default: break
+            }
+        }        
         
         // Convert milliseconds to CMTime
         let time = positionMs.toCMTime
@@ -770,17 +783,6 @@ class VideoUtils {
         do {
             let imageRef = try generator.copyCGImage(at: time, actualTime: nil)
             var image = UIImage(cgImage: imageRef)
-            
-            // Scale image if width and height are provided
-            if let width = width, let height = height {
-                let size = CGSize(width: CGFloat(width), height: CGFloat(height))
-                UIGraphicsBeginImageContextWithOptions(size, false, 0)
-                image.draw(in: CGRect(origin: .zero, size: size))
-                if let scaledImage = UIGraphicsGetImageFromCurrentImageContext() {
-                    image = scaledImage
-                }
-                UIGraphicsEndImageContext()
-            }
             
             let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("thumbnail_\(Date().timeIntervalSince1970).jpg")
             

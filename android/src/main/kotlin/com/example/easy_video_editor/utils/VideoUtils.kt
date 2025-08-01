@@ -33,6 +33,10 @@ import com.otaliastudios.transcoder.strategy.DefaultVideoStrategy
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.core.net.toUri
+import android.os.Build
+import android.util.Size
+import android.media.ThumbnailUtils
+import kotlin.math.roundToInt
 
 @UnstableApi
 class VideoUtils {
@@ -891,35 +895,57 @@ class VideoUtils {
 
             val retriever = MediaMetadataRetriever()
             return@withContext try {
-                retriever.setDataSource(videoPath)
-
-                val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong()
-                    ?: throw VideoException("Could not determine video duration")
-                require(positionMs <= durationMs) { "Position exceeds video duration" }
-
-                val bitmap = retriever.getFrameAtTime(
-                    positionMs * 1000L, // milliseconds to microseconds
-                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC
-                ) ?: throw VideoException("Failed to generate thumbnail")
-
-                val scaledBitmap = if (width != null && height != null) {
-                    val aspectRatio = bitmap.width.toFloat() / bitmap.height
-                    val targetRatio = width.toFloat() / height
-
-                    val finalWidth: Int
-                    val finalHeight: Int
-
-                    if (aspectRatio > targetRatio) {
-                        finalWidth = width
-                        finalHeight = (width / aspectRatio).toInt()
-                    } else {
-                        finalHeight = height
-                        finalWidth = (height * aspectRatio).toInt()
+                // ── choose best method to obtain (possibly pre-scaled) Bitmap ─────────
+                val bitmap: Bitmap = when {
+                    // ── ONE dimension given & API 29+ → ThumbnailUtils (keeps aspect)
+                    Build.VERSION.SDK_INT >= 29 && (width == null || height == null) -> {
+                        val box = if (width != null) Size(width, width)
+                                else Size(height!!, height)
+                        ThumbnailUtils.createVideoThumbnail(File(videoPath), box, null)
+                            ?: throw VideoException("Failed to generate thumbnail")
                     }
 
-                    bitmap.scale(finalWidth, finalHeight)
-                } else {
-                    bitmap
+                    // ── ONE dimension given & API 27–28 → getScaledFrameAtTime (keeps aspect)
+                    Build.VERSION.SDK_INT in 27..28 && (width == null || height == null) -> {
+                        val primary = width ?: height!!
+                        val secondary = Int.MAX_VALUE          // so only 'primary' is respected
+                        val retriever = MediaMetadataRetriever().apply { setDataSource(videoPath) }
+                        retriever.getScaledFrameAtTime(
+                            positionMs * 1000,
+                            MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                            primary, secondary
+                        ) ?: throw VideoException("Failed to generate thumbnail")
+                    }
+
+                    // ── every other case (stretch OR old API) → full frame
+                    else -> {
+                        val retriever = MediaMetadataRetriever().apply { setDataSource(videoPath) }
+                        retriever.getFrameAtTime(
+                            positionMs * 1000,
+                            MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+                        ) ?: throw VideoException("Failed to generate thumbnail")
+                    }
+                }
+
+                // ── post-process if we still need to scale / stretch ──────────────────
+                val finalBitmap: Bitmap = when {
+                    // Both given → always stretch / fit EXACTLY WxH
+                    width != null && height != null ->
+                        Bitmap.createScaledBitmap(bitmap, width, height, /*filter*/ false)
+
+                    // Only width → compute height to keep aspect (when platform didn’t already do it)
+                    width != null && (Build.VERSION.SDK_INT < 27 || height == null) -> {
+                        val newH = (bitmap.height * width / bitmap.width.toFloat()).roundToInt()
+                        Bitmap.createScaledBitmap(bitmap, width, newH, false)
+                    }
+
+                    // Only height → compute width to keep aspect
+                    height != null && (Build.VERSION.SDK_INT < 27 || width == null) -> {
+                        val newW = (bitmap.width * height / bitmap.height.toFloat()).roundToInt()
+                        Bitmap.createScaledBitmap(bitmap, newW, height, false)
+                    }
+
+                    else -> bitmap   // no resize needed
                 }
 
                 val outputFile = File(context.cacheDir, "thumbnail_${System.currentTimeMillis()}.jpg").apply {
@@ -927,11 +953,11 @@ class VideoUtils {
                 }
 
                 FileOutputStream(outputFile).use { out ->
-                    scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
+                    finalBitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
                 }
 
-                if (scaledBitmap != bitmap) scaledBitmap.recycle()
-                bitmap.recycle()
+                if (finalBitmap != bitmap) finalBitmap.recycle()
+                if (bitmap != finalBitmap) bitmap.recycle()
 
                 outputFile.absolutePath
             } catch (e: OutOfMemoryError) {
