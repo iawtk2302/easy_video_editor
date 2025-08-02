@@ -898,7 +898,7 @@ class VideoUtils {
                 // ── choose best method to obtain (possibly pre-scaled) Bitmap ─────────
                 val bitmap: Bitmap = when {
                     // API 27+  and  at least ONE dimension ⇒ let retriever scale for us
-                    Build.VERSION.SDK_INT >= 27 && (width == null || height == null) -> {
+                    Build.VERSION.SDK_INT >= 27 && (width != null || height != null) -> {
                         val primary = width ?: height!!
                         val secondary = Int.MAX_VALUE          // so only 'primary' is respected
                         val retriever = MediaMetadataRetriever().apply { setDataSource(videoPath) }
