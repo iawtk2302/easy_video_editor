@@ -764,9 +764,9 @@ class VideoUtils {
             case let (w?, h?):
                 generator.maximumSize = CGSize(width: w, height: h)      // both → bounding box
             case let (w?, nil):
-                generator.maximumSize = CGSize(width: CGFloat(w), height: CGFloat.greatestFiniteMagnitude) // width only
+                generator.maximumSize = CGSize(width: CGFloat(w), height: 0.0) // width only
             case let (nil, h?):
-                generator.maximumSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat(h)) // height only
+                generator.maximumSize = CGSize(width: 0.0, height: CGFloat(h)) // height only
             default: break
             }
         }        

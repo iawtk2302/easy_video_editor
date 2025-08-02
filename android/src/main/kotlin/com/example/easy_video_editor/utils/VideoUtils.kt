@@ -897,16 +897,8 @@ class VideoUtils {
             return@withContext try {
                 // ── choose best method to obtain (possibly pre-scaled) Bitmap ─────────
                 val bitmap: Bitmap = when {
-                    // ── ONE dimension given & API 29+ → ThumbnailUtils (keeps aspect)
-                    Build.VERSION.SDK_INT >= 29 && (width == null || height == null) -> {
-                        val box = if (width != null) Size(width, width)
-                                else Size(height!!, height)
-                        ThumbnailUtils.createVideoThumbnail(File(videoPath), box, null)
-                            ?: throw VideoException("Failed to generate thumbnail")
-                    }
-
-                    // ── ONE dimension given & API 27–28 → getScaledFrameAtTime (keeps aspect)
-                    Build.VERSION.SDK_INT in 27..28 && (width == null || height == null) -> {
+                    // API 27+  and  at least ONE dimension ⇒ let retriever scale for us
+                    Build.VERSION.SDK_INT >= 27 && (width == null || height == null) -> {
                         val primary = width ?: height!!
                         val secondary = Int.MAX_VALUE          // so only 'primary' is respected
                         val retriever = MediaMetadataRetriever().apply { setDataSource(videoPath) }
