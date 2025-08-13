@@ -116,7 +116,7 @@ abstract class EasyVideoEditorPlatform extends PlatformInterface {
   /// Returns the path to the generated thumbnail, or null if the operation fails.
   Future<String?> generateThumbnail(
       String videoPath, int positionMs, int quality,
-      {int? height, int? width}) {
+      {int? height, int? width, bool exactFrame = false}) {
     throw UnimplementedError('generateThumbnail() has not been implemented.');
   }
 

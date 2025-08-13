@@ -296,6 +296,7 @@ class VideoEditorBuilder {
     required int quality,
     int? height,
     int? width,
+    bool exactFrame = false,
     String? outputPath,
   }) async {
     final result = await _editor.generateThumbnail(
@@ -304,6 +305,7 @@ class VideoEditorBuilder {
       quality,
       height: height,
       width: width,
+      exactFrame: exactFrame,
     );
 
     if (result != null && outputPath != null) {

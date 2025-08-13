@@ -18,6 +18,12 @@ class GenerateThumbnailCommand: Command {
 
         let width  = (arguments["width"]  as? NSNumber)?.intValue
         let height = (arguments["height"] as? NSNumber)?.intValue        
+
+        let exactFrame: Bool = {
+            if let b = arguments["exactFrame"] as? Bool { return b }
+            if let n = arguments["exactFrame"] as? NSNumber { return n.boolValue }
+            return false
+        }()        
         
         let operationId = OperationManager.shared.generateOperationId()
         
@@ -36,6 +42,7 @@ class GenerateThumbnailCommand: Command {
                     width: width,
                     height: height,
                     quality: quality.intValue,
+                    exactFrame: exactFrame,
                     workItem: workItem
                 )
 

@@ -882,9 +882,10 @@ class VideoUtils {
         suspend fun generateThumbnail(
             context: Context,
             videoPath: String,
-            positionMs: Long,
+            positionMs: Long,            
             width: Int? = null,
             height: Int? = null,
+            exactFrame: Boolean = false,
             quality: Int = 80
         ): String = withContext(Dispatchers.IO) {
             require(File(videoPath).exists()) { "Video file does not exist" }
@@ -893,28 +894,30 @@ class VideoUtils {
             width?.let { require(it > 0) { "Width must be positive" } }
             height?.let { require(it > 0) { "Height must be positive" } }
 
-            val retriever = MediaMetadataRetriever()
+            val retriever = MediaMetadataRetriever().apply { setDataSource(videoPath) }
             return@withContext try {
+                val option = if (exactFrame)
+                    MediaMetadataRetriever.OPTION_CLOSEST
+                else
+                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC                
                 // ── choose best method to obtain (possibly pre-scaled) Bitmap ─────────
                 val bitmap: Bitmap = when {
                     // API 27+  and  at least ONE dimension ⇒ let retriever scale for us
                     Build.VERSION.SDK_INT >= 27 && (width != null || height != null) -> {
                         val primary = width ?: height!!
                         val secondary = Int.MAX_VALUE          // so only 'primary' is respected
-                        val retriever = MediaMetadataRetriever().apply { setDataSource(videoPath) }
                         retriever.getScaledFrameAtTime(
                             positionMs * 1000,
-                            MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                            option,
                             primary, secondary
                         ) ?: throw VideoException("Failed to generate thumbnail")
                     }
 
                     // ── every other case (stretch OR old API) → full frame
                     else -> {
-                        val retriever = MediaMetadataRetriever().apply { setDataSource(videoPath) }
                         retriever.getFrameAtTime(
                             positionMs * 1000,
-                            MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+                            option
                         ) ?: throw VideoException("Failed to generate thumbnail")
                     }
                 }

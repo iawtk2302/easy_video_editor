@@ -735,7 +735,7 @@ class VideoUtils {
 
     
     // MARK: - Generate Thumbnail
-    static func generateThumbnail(videoPath: String, positionMs: Int64, width: Int? = nil, height: Int? = nil, quality: Int = 80, workItem: DispatchWorkItem? = nil) throws -> String {
+    static func generateThumbnail(videoPath: String, positionMs: Int64, width: Int? = nil, height: Int? = nil, quality: Int = 80, exactFrame: Bool = false, workItem: DispatchWorkItem? = nil) throws -> String {
         // Validate input parameters
         guard FileManager.default.fileExists(atPath: videoPath) else {
             throw VideoError.fileNotFound
@@ -758,6 +758,20 @@ class VideoUtils {
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
 
+        // configure tolerances based on mode
+        if exactFrame {
+            generator.requestedTimeToleranceBefore = .zero
+            generator.requestedTimeToleranceAfter  = .zero
+            // common edge case: sometimes no sample exactly at close to 0 allow a tiny "after" tolerance
+            if positionMs < 10 {
+                generator.requestedTimeToleranceAfter = CMTime(value: 10, timescale: 1000)
+            }
+        } else {
+            // closest keyframe on either side
+            generator.requestedTimeToleranceBefore = .positiveInfinity
+            generator.requestedTimeToleranceAfter  = .positiveInfinity
+        }
+        
         // Tell AVFoundation how large the bitmap may be
         if width != nil || height != nil {
             switch (width, height) {
@@ -772,7 +786,7 @@ class VideoUtils {
         }        
         
         // Convert milliseconds to CMTime
-        let time = positionMs.toCMTime
+        let time = CMTimeMake(value: positionMs, timescale: 1000)
         
         // Validate time range
         let duration = asset.duration.toMilliseconds
@@ -781,7 +795,8 @@ class VideoUtils {
         }
         
         do {
-            let imageRef = try generator.copyCGImage(at: time, actualTime: nil)
+            var actual = CMTime.zero
+            let imageRef = try generator.copyCGImage(at: time, actualTime: &actual)
             var image = UIImage(cgImage: imageRef)
             
             let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("thumbnail_\(Date().timeIntervalSince1970).jpg")
