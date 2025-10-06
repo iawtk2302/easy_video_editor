@@ -82,12 +82,13 @@ class MethodChannelEasyVideoEditor extends EasyVideoEditorPlatform {
   @override
   Future<String?> generateThumbnail(
       String videoPath, int positionMs, int quality,
-      {int? height, int? width}) async {
+      {int? height, int? width, bool exactFrame = false}) async {
     final result =
         await methodChannel.invokeMethod<String>('generateThumbnail', {
       'videoPath': videoPath,
       'positionMs': positionMs,
       'quality': quality,
+      'exactFrame': exactFrame,
       if (height != null) 'height': height,
       if (width != null) 'width': width,
     });

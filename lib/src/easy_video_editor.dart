@@ -55,10 +55,10 @@ class EasyVideoEditor {
   /// [width] optional width of the thumbnail in pixels.
   Future<String?> generateThumbnail(
       String videoPath, int positionMs, int quality,
-      {int? height, int? width}) {
+      {int? height, int? width, exactFrame = false}) {
     return EasyVideoEditorPlatform.instance.generateThumbnail(
         videoPath, positionMs, quality,
-        height: height, width: width);
+        height: height, width: width, exactFrame: exactFrame);
   }
 
   /// Compresses a video by adjusting its resolution and bitrate.

@@ -21,6 +21,7 @@ class GenerateThumbnailCommand(private val context: Context) : Command {
         val width = call.argument<Number>("width")?.toInt()
         val height = call.argument<Number>("height")?.toInt()
         val quality = call.argument<Number>("quality")?.toInt() ?: 80
+        val exactFrame = call.argument<Boolean>("exactFrame") ?: false
 
         if (videoPath == null || position == null) {
             result.error(
@@ -46,6 +47,7 @@ class GenerateThumbnailCommand(private val context: Context) : Command {
                     positionMs = position,
                     width = width,
                     height = height,
+                    exactFrame = exactFrame,
                     quality = quality
                 )
                 result.success(outputPath)
