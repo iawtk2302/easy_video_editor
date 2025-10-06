@@ -1,3 +1,7 @@
+## 0.1.3
+
+- Add exactFrame option for generate thumbnail
+
 ## 0.1.2
 
 - Fix generate thumbnail issue on Android
