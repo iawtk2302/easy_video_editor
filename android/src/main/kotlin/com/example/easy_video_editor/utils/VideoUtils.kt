@@ -36,6 +36,7 @@ import androidx.core.net.toUri
 import android.os.Build
 import android.util.Size
 import android.media.ThumbnailUtils
+import androidx.media3.effect.Crop
 import kotlin.math.roundToInt
 
 @UnstableApi
@@ -680,41 +681,59 @@ class VideoUtils {
                 }
             }
 
+            if (videoWidth <= 0f || videoHeight <= 0f) {
+                throw IllegalArgumentException("Could not read video dimensions")
+            }
+
             // Calculate crop dimensions based on aspect ratio
             val (targetWidth, targetHeight) = aspectRatio.split(":").map { it.toFloat() }
             val targetAspectRatio = targetWidth / targetHeight
             val videoAspectRatio = videoWidth / videoHeight
 
-            // Calculate scale factors to achieve the desired aspect ratio through scaling
-            val (scaleWidth, scaleHeight) = if (videoAspectRatio > targetAspectRatio) {
-                // Video is wider than target, scale height up to crop sides
-                val scale = videoAspectRatio / targetAspectRatio
-                1f to scale
+            // Calculate cropping area (pixels)
+            val cropWidthPx: Float
+            val cropHeightPx: Float
+            if (videoAspectRatio >= targetAspectRatio) {
+                //Video wider than target ->Maintain height, cut left and right
+                cropHeightPx = videoHeight
+                cropWidthPx = videoHeight * targetAspectRatio
             } else {
-                // Video is taller than target, scale width up to crop top/bottom
-                val scale = targetAspectRatio / videoAspectRatio
-                scale to 1f
+                //Video higher than target ->Maintain width, cut up and down
+                cropWidthPx = videoWidth
+                cropHeightPx = videoWidth / targetAspectRatio
             }
 
-            // Transformer operations on Main thread
+            val widthFrac = cropWidthPx / videoWidth
+            val heightFrac = cropHeightPx / videoHeight
+            val leftNdc = -widthFrac
+            val rightNdc = widthFrac
+            val bottomNdc = -heightFrac
+            val topNdc = heightFrac
+
             return withContext(Dispatchers.Main) {
                 suspendCancellableCoroutine { continuation ->
-                    val mediaItem =
-                        MediaItem.Builder().setUri(Uri.fromFile(File(videoPath))).build()
+                    val mediaItem = MediaItem.Builder()
+                        .setUri(Uri.fromFile(File(videoPath)))
+                        .build()
 
-                    val editedMediaItem =
-                        EditedMediaItem.Builder(mediaItem)
-                            .setEffects(
-                                Effects(
-                                    emptyList(),
-                                    listOf(
-                                        ScaleAndRotateTransformation.Builder()
-                                            .setScale(scaleWidth, scaleHeight)
-                                            .build()
-                                    )
+                    val scaleEffect = ScaleAndRotateTransformation.Builder()
+                        .setScale(1f, 1f)
+                        .setRotationDegrees(0f)
+                        .build()
+
+                    val cropEffect = Crop(leftNdc, rightNdc, bottomNdc, topNdc)
+
+                    val editedMediaItem = EditedMediaItem.Builder(mediaItem)
+                        .setEffects(
+                            Effects(
+                                emptyList(),
+                                listOf(
+                                    scaleEffect,
+                                    cropEffect
                                 )
                             )
-                            .build()
+                        )
+                        .build()
 
                     val transformer =
                         Transformer.Builder(context)
