@@ -112,16 +112,28 @@ class VideoUtils {
             }
         }
         
+        let assets = videoPaths.map { AVAsset(url: URL(fileURLWithPath: $0)) }
+        let videoTracks = assets.compactMap { $0.tracks(withMediaType: .video).first }
+        guard videoTracks.count == assets.count else {
+            throw VideoError.invalidAsset
+        }
+
+        let renderSize = mergeRenderSize(for: videoTracks)
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.renderSize = renderSize
+        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+        videoComposition.renderScale = 1.0
+
         let composition = AVMutableComposition()
-        guard let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
-              let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+        guard let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
             throw VideoError.exportFailed("Failed to create composition tracks")
         }
+        let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
         
         var currentTime = CMTime.zero
+        var instructions: [AVMutableVideoCompositionInstruction] = []
         
-        for path in videoPaths {
-            let asset = AVAsset(url: URL(fileURLWithPath: path))
+        for asset in assets {
             let duration = asset.duration
             
             if let videoTrack = asset.tracks(withMediaType: .video).first {
@@ -130,10 +142,22 @@ class VideoUtils {
                     of: videoTrack,
                     at: currentTime
                 )
+
+                let timeRange = CMTimeRange(start: currentTime, duration: duration)
+                let instruction = AVMutableVideoCompositionInstruction()
+                instruction.timeRange = timeRange
+
+                let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
+                layerInstruction.setTransform(
+                    mergeTransform(for: videoTrack, in: renderSize),
+                    at: currentTime
+                )
+                instruction.layerInstructions = [layerInstruction]
+                instructions.append(instruction)
             }
             
             if let audioTrack = asset.tracks(withMediaType: .audio).first {
-                try compositionAudioTrack.insertTimeRange(
+                try compositionAudioTrack?.insertTimeRange(
                     CMTimeRange(start: .zero, duration: duration),
                     of: audioTrack,
                     at: currentTime
@@ -142,10 +166,49 @@ class VideoUtils {
             
             currentTime = CMTimeAdd(currentTime, duration)
         }
+        videoComposition.instructions = instructions
         
         let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("merged_video_\(Date().timeIntervalSince1970).mp4")
         
-        return try export(composition: composition, outputURL: outputURL, workItem: workItem)
+        return try export(composition: composition, outputURL: outputURL, videoComposition: videoComposition, workItem: workItem)
+    }
+
+    private static func mergeRenderSize(for tracks: [AVAssetTrack]) -> CGSize {
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+
+        for track in tracks {
+            let displaySize = displaySize(for: track)
+            width = max(width, displaySize.width)
+            height = max(height, displaySize.height)
+        }
+
+        return CGSize(width: roundUpToEven(width), height: roundUpToEven(height))
+    }
+
+    private static func mergeTransform(for track: AVAssetTrack, in renderSize: CGSize) -> CGAffineTransform {
+        let displayRect = CGRect(origin: .zero, size: track.naturalSize).applying(track.preferredTransform)
+        let displaySize = CGSize(width: abs(displayRect.width), height: abs(displayRect.height))
+        let scale = min(renderSize.width / displaySize.width, renderSize.height / displaySize.height)
+        let fittedWidth = displaySize.width * scale
+        let fittedHeight = displaySize.height * scale
+        let offsetX = (renderSize.width - fittedWidth) / 2
+        let offsetY = (renderSize.height - fittedHeight) / 2
+
+        return track.preferredTransform
+            .concatenating(CGAffineTransform(translationX: -displayRect.origin.x, y: -displayRect.origin.y))
+            .concatenating(CGAffineTransform(scaleX: scale, y: scale))
+            .concatenating(CGAffineTransform(translationX: offsetX, y: offsetY))
+    }
+
+    private static func displaySize(for track: AVAssetTrack) -> CGSize {
+        let displayRect = CGRect(origin: .zero, size: track.naturalSize).applying(track.preferredTransform)
+        return CGSize(width: abs(displayRect.width), height: abs(displayRect.height))
+    }
+
+    private static func roundUpToEven(_ value: CGFloat) -> CGFloat {
+        let rounded = Int(ceil(value))
+        return CGFloat(rounded % 2 == 0 ? rounded : rounded + 1)
     }
     
     // MARK: - Extract Audio

@@ -1,3 +1,14 @@
+## 0.1.5
+
+- Add Swift Package Manager support for the iOS plugin while keeping CocoaPods compatibility.
+- Remove production `print` calls from `VideoEditorBuilder` so package analysis is clean.
+
+## 0.1.4
+
+- Improve video merge output on Android and iOS by preserving display orientation and fitting mixed-size videos into an even-sized canvas.
+- Fix operation cleanup so completed operations are unregistered without triggering cancellation behavior.
+- Add Android unit coverage for operation unregister and inactive-scope cleanup.
+
 ## 0.1.3
 
 - Add exactFrame option for generate thumbnail

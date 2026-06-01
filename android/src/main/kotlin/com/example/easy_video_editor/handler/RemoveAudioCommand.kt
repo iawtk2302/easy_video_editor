@@ -44,7 +44,7 @@ class RemoveAudioCommand(private val context: Context) : Command {
             } catch (e: Exception) {
                 result.error("REMOVE_AUDIO_ERROR", e.message, null)
             } finally {
-                OperationManager.cancelOperation(operationId)
+                OperationManager.unregisterOperation(operationId)
                 methodScope.cancel()
             }
         }

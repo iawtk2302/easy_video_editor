@@ -53,7 +53,7 @@ class CropVideoCommand(private val context: Context) : Command {
                     result.error("CROP_ERROR", e.message, null)
                 }
             } finally {
-                OperationManager.cancelOperation(operationId)
+                OperationManager.unregisterOperation(operationId)
                 methodScope.cancel()
             }
         }

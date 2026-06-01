@@ -2,26 +2,20 @@ import Flutter
 import AVFoundation
 import Foundation
 
-class TrimVideoCommand: Command {
+class ExtractAudioCommand: Command {
     func execute(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let arguments = call.arguments as? [String: Any],
-              let videoPath = arguments["videoPath"] as? String,
-              let startTime = arguments["startTimeMs"] as? NSNumber,
-              let endTime = arguments["endTimeMs"] as? NSNumber else {
+              let videoPath = arguments["videoPath"] as? String else {
             result(FlutterError(
                 code: "INVALID_ARGUMENTS",
-                message: "Missing required arguments: videoPath, startTimeMs, or endTimeMs",
+                message: "Missing required argument: videoPath",
                 details: nil
             ))
             return
         }
-        
-        let startTimeMs = startTime.int64Value
-        let endTimeMs = endTime.int64Value
 
-        // Create operation ID
         let operationId = OperationManager.shared.generateOperationId()
-
+        
         lazy var workItem: DispatchWorkItem = DispatchWorkItem {
             // Check if operation was canceled before starting
             if workItem.isCancelled {
@@ -32,12 +26,7 @@ class TrimVideoCommand: Command {
             }
 
             do {
-                let outputPath = try VideoUtils.trimVideo(
-                    videoPath: videoPath,
-                    startTimeMs: startTimeMs,
-                    endTimeMs: endTimeMs,
-                    workItem: workItem
-                )
+                let outputPath = try VideoUtils.extractAudio(videoPath: videoPath, workItem: workItem)
 
                 // Check if operation was canceled after processing
                 if workItem.isCancelled {
@@ -57,14 +46,13 @@ class TrimVideoCommand: Command {
                 }
             }
 
-            // Cancel the operation when done
-            OperationManager.shared.cancelOperation(operationId)
+            OperationManager.shared.unregisterOperation(operationId)
         }
 
-        // Register workItem to be able to cancel
+        // Register operation
         OperationManager.shared.registerOperation(id: operationId, workItem: workItem)
 
-        // Run the operation
+        // Start the operation
         DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
     }
 }

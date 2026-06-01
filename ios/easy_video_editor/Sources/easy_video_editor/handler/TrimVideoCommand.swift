@@ -2,20 +2,26 @@ import Flutter
 import AVFoundation
 import Foundation
 
-class RemoveAudioCommand: Command {
+class TrimVideoCommand: Command {
     func execute(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let arguments = call.arguments as? [String: Any],
-              let videoPath = arguments["videoPath"] as? String else {
+              let videoPath = arguments["videoPath"] as? String,
+              let startTime = arguments["startTimeMs"] as? NSNumber,
+              let endTime = arguments["endTimeMs"] as? NSNumber else {
             result(FlutterError(
                 code: "INVALID_ARGUMENTS",
-                message: "Missing required argument: videoPath",
+                message: "Missing required arguments: videoPath, startTimeMs, or endTimeMs",
                 details: nil
             ))
             return
         }
         
+        let startTimeMs = startTime.int64Value
+        let endTimeMs = endTime.int64Value
+
+        // Create operation ID
         let operationId = OperationManager.shared.generateOperationId()
-        
+
         lazy var workItem: DispatchWorkItem = DispatchWorkItem {
             // Check if operation was canceled before starting
             if workItem.isCancelled {
@@ -26,7 +32,12 @@ class RemoveAudioCommand: Command {
             }
 
             do {
-                let outputPath = try VideoUtils.removeAudioFromVideo(videoPath: videoPath, workItem: workItem)
+                let outputPath = try VideoUtils.trimVideo(
+                    videoPath: videoPath,
+                    startTimeMs: startTimeMs,
+                    endTimeMs: endTimeMs,
+                    workItem: workItem
+                )
 
                 // Check if operation was canceled after processing
                 if workItem.isCancelled {
@@ -40,20 +51,19 @@ class RemoveAudioCommand: Command {
                     }
                 }
             } catch {
-                // Silently handle all errors without showing error messages
+                // Silently handle errors without showing error message
                 DispatchQueue.main.async {
                     result(nil)
                 }
             }
 
-            // Cancel the operation when done
-            OperationManager.shared.cancelOperation(operationId)
+            OperationManager.shared.unregisterOperation(operationId)
         }
 
         // Register workItem to be able to cancel
         OperationManager.shared.registerOperation(id: operationId, workItem: workItem)
 
-        // Start the operation
+        // Run the operation
         DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
     }
 }

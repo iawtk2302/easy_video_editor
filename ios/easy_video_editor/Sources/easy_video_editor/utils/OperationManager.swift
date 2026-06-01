@@ -18,6 +18,13 @@ class OperationManager {
         }
     }
 
+    /// Remove a completed operation without canceling it.
+    func unregisterOperation(_ id: String) {
+        queue.async(flags: .barrier) {
+            self.operations.removeValue(forKey: id)
+        }
+    }
+
     /// Cancel a specific operation by its ID
     func cancelOperation(_ id: String) {
         queue.async(flags: .barrier) {

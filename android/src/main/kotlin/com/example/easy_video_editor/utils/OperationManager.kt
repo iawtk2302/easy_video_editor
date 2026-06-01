@@ -28,6 +28,19 @@ object OperationManager {
     fun registerOperation(id: String, scope: CoroutineScope) {
         activeScopes[id] = scope
     }
+
+    /**
+     * Removes a completed operation without canceling its scope.
+     *
+     * Completion cleanup should not go through [cancelOperation], because cancellation
+     * is user intent and can trigger cancellation handlers after work has succeeded.
+     */
+    fun unregisterOperation(id: String) {
+        activeScopes.remove(id)
+    }
+
+    internal val activeOperationCount: Int
+        get() = activeScopes.size
     
     /**
      * Cancels a specific operation
@@ -36,10 +49,9 @@ object OperationManager {
      * @return true if the operation was found and canceled, false otherwise
      */
     fun cancelOperation(id: String): Boolean {
-        val scope = activeScopes[id]
+        val scope = activeScopes.remove(id)
         if (scope != null && scope.isActive) {
             scope.cancel("Operation canceled by user")
-            activeScopes.remove(id)
             return true
         }
         return false

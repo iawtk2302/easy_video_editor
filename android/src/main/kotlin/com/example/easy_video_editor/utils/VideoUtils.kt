@@ -8,6 +8,7 @@ import java.io.File
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.audio.SonicAudioProcessor
+import androidx.media3.effect.Presentation
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.effect.SpeedChangeEffect
@@ -297,15 +298,26 @@ class VideoUtils {
                 File(context.cacheDir, "merged_video_${System.currentTimeMillis()}.mp4")
                     .apply { if (exists()) delete() }
             }
+            val mergeLayout = withContext(Dispatchers.IO) {
+                MergeLayout.from(
+                    videoPaths.map { path -> getVideoDisplayDimensions(path) }
+                )
+            }
 
             // Transformer operations on Main thread
             return withContext(Dispatchers.Main) {
                 suspendCancellableCoroutine { continuation ->
+                    val presentation = Presentation.createForWidthAndHeight(
+                        mergeLayout.canvas.width,
+                        mergeLayout.canvas.height,
+                        Presentation.LAYOUT_SCALE_TO_FIT
+                    )
                     val editedMediaItems =
                         videoPaths.map { path ->
                             EditedMediaItem.Builder(
                                 MediaItem.fromUri(Uri.fromFile(File(path)))
                             )
+                            .setEffects(Effects(emptyList(), listOf(presentation)))
                             .build()
                         }
 
@@ -466,6 +478,34 @@ class VideoUtils {
                         outputFile.delete()
                     }
                 }
+            }
+        }
+
+        private fun getVideoDisplayDimensions(videoPath: String): VideoDimensions {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(videoPath)
+                val width = retriever
+                    .extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                    ?.toIntOrNull() ?: 0
+                val height = retriever
+                    .extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                    ?.toIntOrNull() ?: 0
+                val rotation = retriever
+                    .extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+                    ?.toIntOrNull() ?: 0
+
+                require(width > 0 && height > 0) {
+                    "Could not read video dimensions: $videoPath"
+                }
+
+                return if (rotation == 90 || rotation == 270) {
+                    VideoDimensions(width = height, height = width)
+                } else {
+                    VideoDimensions(width = width, height = height)
+                }
+            } finally {
+                retriever.release()
             }
         }
         suspend fun adjustVideoSpeed(
@@ -1092,6 +1132,57 @@ class VideoUtils {
 class VideoException : Exception {
     constructor(message: String) : super(message)
     constructor(message: String, cause: Throwable) : super(message, cause)
+}
+
+data class VideoDimensions(val width: Int, val height: Int)
+
+data class FittedVideoFrame(
+    val width: Int,
+    val height: Int,
+    val offsetX: Int,
+    val offsetY: Int
+) {
+    val aspectRatio: Double = width.toDouble() / height.toDouble()
+}
+
+data class MergeLayout(val canvas: VideoDimensions) {
+    fun fit(source: VideoDimensions): FittedVideoFrame {
+        require(source.width > 0 && source.height > 0) { "Source dimensions must be positive" }
+
+        val scale = minOf(
+            canvas.width.toDouble() / source.width.toDouble(),
+            canvas.height.toDouble() / source.height.toDouble()
+        )
+        val fittedWidth = (source.width * scale).roundToInt().coerceAtLeast(1)
+        val fittedHeight = (source.height * scale).roundToInt().coerceAtLeast(1)
+
+        return FittedVideoFrame(
+            width = fittedWidth,
+            height = fittedHeight,
+            offsetX = (canvas.width - fittedWidth) / 2,
+            offsetY = (canvas.height - fittedHeight) / 2
+        )
+    }
+
+    companion object {
+        fun from(sources: List<VideoDimensions>): MergeLayout {
+            require(sources.isNotEmpty()) { "Video dimensions list cannot be empty" }
+
+            val canvasWidth = sources.maxOf { it.width }
+            val canvasHeight = sources.maxOf { it.height }
+
+            require(canvasWidth > 0 && canvasHeight > 0) { "Video dimensions must be positive" }
+
+            return MergeLayout(
+                canvas = VideoDimensions(
+                    width = canvasWidth.roundUpToEven(),
+                    height = canvasHeight.roundUpToEven()
+                )
+            )
+        }
+
+        private fun Int.roundUpToEven(): Int = if (this % 2 == 0) this else this + 1
+    }
 }
 
 /**

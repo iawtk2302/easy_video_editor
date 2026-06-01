@@ -2,14 +2,13 @@ import Flutter
 import AVFoundation
 import Foundation
 
-class CompressVideoCommand: Command {
+class RemoveAudioCommand: Command {
     func execute(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let arguments = call.arguments as? [String: Any],
-              let videoPath = arguments["videoPath"] as? String,
-              let targetHeight = arguments["targetHeight"] as? Int else {
+              let videoPath = arguments["videoPath"] as? String else {
             result(FlutterError(
                 code: "INVALID_ARGUMENTS",
-                message: "Missing required arguments: videoPath or targetHeight",
+                message: "Missing required argument: videoPath",
                 details: nil
             ))
             return
@@ -27,11 +26,7 @@ class CompressVideoCommand: Command {
             }
 
             do {
-                let outputPath = try VideoUtils.compressVideo(
-                    videoPath: videoPath,
-                    targetHeight: targetHeight,
-                    workItem: workItem
-                )
+                let outputPath = try VideoUtils.removeAudioFromVideo(videoPath: videoPath, workItem: workItem)
 
                 // Check if operation was canceled after processing
                 if workItem.isCancelled {
@@ -45,17 +40,16 @@ class CompressVideoCommand: Command {
                     }
                 }
             } catch {
-                // Silently handle errors without showing error message
+                // Silently handle all errors without showing error messages
                 DispatchQueue.main.async {
                     result(nil)
                 }
             }
 
-            // Cancel operation when completed
-            OperationManager.shared.cancelOperation(operationId)
+            OperationManager.shared.unregisterOperation(operationId)
         }
 
-        // Register work item with operation manager for possible cancellation
+        // Register workItem to be able to cancel
         OperationManager.shared.registerOperation(id: operationId, workItem: workItem)
 
         // Start the operation

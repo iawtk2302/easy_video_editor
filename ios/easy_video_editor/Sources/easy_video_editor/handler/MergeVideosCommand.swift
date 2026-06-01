@@ -1,20 +1,18 @@
 import Flutter
 import AVFoundation
-import Foundation
 
-class RotateVideoCommand: Command {
+class MergeVideosCommand: Command {
     func execute(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let arguments = call.arguments as? [String: Any],
-              let videoPath = arguments["videoPath"] as? String,
-              let rotationDegrees = arguments["rotationDegrees"] as? NSNumber else {
+              let videoPaths = arguments["videoPaths"] as? [String], !videoPaths.isEmpty else {
             result(FlutterError(
                 code: "INVALID_ARGUMENTS",
-                message: "Missing required arguments: videoPath or rotationDegrees",
+                message: "Missing or empty videoPaths",
                 details: nil
             ))
             return
         }
-        
+
         let operationId = OperationManager.shared.generateOperationId()
 
         lazy var workItem: DispatchWorkItem = DispatchWorkItem {
@@ -27,11 +25,7 @@ class RotateVideoCommand: Command {
             }
 
             do {
-                let outputPath = try VideoUtils.rotateVideo(
-                    videoPath: videoPath,
-                    rotationDegrees: rotationDegrees.floatValue,
-                    workItem: workItem
-                )
+                let outputPath = try VideoUtils.mergeVideos(videoPaths: videoPaths, workItem: workItem)
 
                 // Check if operation was canceled after processing
                 if workItem.isCancelled {
@@ -50,9 +44,8 @@ class RotateVideoCommand: Command {
                     result(nil)
                 }
             }
-
-            // Cancel the operation when done
-            OperationManager.shared.cancelOperation(operationId)
+            
+            OperationManager.shared.unregisterOperation(operationId)
         }
 
         // Register workItem to be able to cancel

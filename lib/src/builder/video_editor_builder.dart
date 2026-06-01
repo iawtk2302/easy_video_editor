@@ -157,12 +157,11 @@ class VideoEditorBuilder {
             if (await file.exists()) {
               await file.delete();
             }
-          } catch (e) {
-            print('Warning: Could not delete intermediate file: $previousPath');
+          } catch (_) {
+            // Ignore cleanup failures so export can still return the processed file.
           }
         }
-      } catch (e) {
-        print('Error executing operation ${operation.type.name}: $e');
+      } catch (_) {
         return null;
       }
     }
@@ -178,8 +177,7 @@ class VideoEditorBuilder {
         }
 
         currentPath = outputPath;
-      } catch (e) {
-        print('Error copying to output path: $e');
+      } catch (_) {
         return null;
       }
     }
@@ -274,8 +272,7 @@ class VideoEditorBuilder {
         // Delete the original output since we've moved it
         await inputFile.delete();
         return outputPath;
-      } catch (e) {
-        print('Error copying audio to output path: $e');
+      } catch (_) {
         return null;
       }
     }
@@ -316,8 +313,7 @@ class VideoEditorBuilder {
         // Delete the original output since we've moved it
         await inputFile.delete();
         return outputPath;
-      } catch (e) {
-        print('Error copying thumbnail to output path: $e');
+      } catch (_) {
         return null;
       }
     }

@@ -46,7 +46,7 @@ class AdjustVideoSpeedCommand(private val context: Context) : Command {
             } catch (e: Exception) {
                 result.error("ADJUST_SPEED_ERROR", e.message, null)
             } finally {
-                OperationManager.cancelOperation(operationId)
+                OperationManager.unregisterOperation(operationId)
                 methodScope.cancel()
             }
         }

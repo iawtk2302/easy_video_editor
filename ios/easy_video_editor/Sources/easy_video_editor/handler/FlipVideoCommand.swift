@@ -1,13 +1,15 @@
 import Flutter
 import AVFoundation
+import Foundation
 
-class MergeVideosCommand: Command {
+class FlipVideoCommand: Command {
     func execute(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let arguments = call.arguments as? [String: Any],
-              let videoPaths = arguments["videoPaths"] as? [String], !videoPaths.isEmpty else {
+              let videoPath = arguments["videoPath"] as? String,
+              let flipDirection = arguments["flipDirection"] as? String else {
             result(FlutterError(
                 code: "INVALID_ARGUMENTS",
-                message: "Missing or empty videoPaths",
+                message: "Missing required arguments: videoPath or flipDirection",
                 details: nil
             ))
             return
@@ -25,7 +27,11 @@ class MergeVideosCommand: Command {
             }
 
             do {
-                let outputPath = try VideoUtils.mergeVideos(videoPaths: videoPaths, workItem: workItem)
+                let outputPath = try VideoUtils.flipVideo(
+                    videoPath: videoPath,
+                    flipDirection: flipDirection,
+                    workItem: workItem
+                )
 
                 // Check if operation was canceled after processing
                 if workItem.isCancelled {
@@ -44,9 +50,8 @@ class MergeVideosCommand: Command {
                     result(nil)
                 }
             }
-            
-            // Unregister after completion
-            OperationManager.shared.cancelOperation(operationId)
+
+            OperationManager.shared.unregisterOperation(operationId)
         }
 
         // Register workItem to be able to cancel

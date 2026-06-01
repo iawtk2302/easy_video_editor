@@ -2,19 +2,19 @@ import Flutter
 import AVFoundation
 import Foundation
 
-class FlipVideoCommand: Command {
+class RotateVideoCommand: Command {
     func execute(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let arguments = call.arguments as? [String: Any],
               let videoPath = arguments["videoPath"] as? String,
-              let flipDirection = arguments["flipDirection"] as? String else {
+              let rotationDegrees = arguments["rotationDegrees"] as? NSNumber else {
             result(FlutterError(
                 code: "INVALID_ARGUMENTS",
-                message: "Missing required arguments: videoPath or flipDirection",
+                message: "Missing required arguments: videoPath or rotationDegrees",
                 details: nil
             ))
             return
         }
-
+        
         let operationId = OperationManager.shared.generateOperationId()
 
         lazy var workItem: DispatchWorkItem = DispatchWorkItem {
@@ -27,9 +27,9 @@ class FlipVideoCommand: Command {
             }
 
             do {
-                let outputPath = try VideoUtils.flipVideo(
+                let outputPath = try VideoUtils.rotateVideo(
                     videoPath: videoPath,
-                    flipDirection: flipDirection,
+                    rotationDegrees: rotationDegrees.floatValue,
                     workItem: workItem
                 )
 
@@ -51,8 +51,7 @@ class FlipVideoCommand: Command {
                 }
             }
 
-            // Cancel the operation when done
-            OperationManager.shared.cancelOperation(operationId)
+            OperationManager.shared.unregisterOperation(operationId)
         }
 
         // Register workItem to be able to cancel

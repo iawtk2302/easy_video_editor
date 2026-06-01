@@ -49,8 +49,7 @@ class AdjustVideoSpeedCommand: Command {
                     result(nil)
                 }
             }
-            // Cancel operation when completed
-            OperationManager.shared.cancelOperation(operationId)
+            OperationManager.shared.unregisterOperation(operationId)
         }
         
         // Register work item with operation manager for possible cancellation

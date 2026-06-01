@@ -54,7 +54,7 @@ class CompressVideoCommand(private val context: Context) : Command {
                 }
             } finally {
                 // Clean up from operation manager
-                OperationManager.cancelOperation(operationId)
+                OperationManager.unregisterOperation(operationId)
                 methodScope.cancel()
             }
         }

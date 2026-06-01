@@ -47,7 +47,7 @@ class RotateVideoCommand(private val context: Context) : Command {
                 result.error("ROTATE_ERROR", e.message, null)
             } finally {
                 // Clean up from operation manager
-                OperationManager.cancelOperation(operationId)
+                OperationManager.unregisterOperation(operationId)
                 methodScope.cancel()
             }
         }

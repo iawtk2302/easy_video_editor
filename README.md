@@ -26,6 +26,7 @@ A powerful Flutter plugin for video editing operations with a simple, chainable 
 - 📊 **Video Metadata**: Retrieve detailed information about video files
 - 🔗 **Builder Pattern API**: Chain operations for complex video editing
 - 📱 **Platform Support**: Works on both Android and iOS
+- 📦 **iOS Package Managers**: Supports both CocoaPods and Swift Package Manager
 
 ## Installation
 
@@ -33,7 +34,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  easy_video_editor: ^0.1.3
+  easy_video_editor: ^0.1.5
 ```
 
 Or install via command line:
@@ -108,6 +109,7 @@ final thumbnailPath = await editor.generateThumbnail(
   quality: 85,
   width: 1280,    // optional
   height: 720,    // optional
+  exactFrame: true, // optional, request exact-frame extraction when supported
   outputPath: '/path/to/thumbnail.jpg' // Optional output path
 );
 
@@ -170,7 +172,7 @@ The main class for chaining video operations.
 #### Methods
 
 - `trim({required int startTimeMs, required int endTimeMs})`: Trim video to specified duration (outputs MP4)
-- `merge({required List<String> otherVideoPaths})`: Merge with other videos (outputs MP4)
+- `merge({required List<String> otherVideoPaths})`: Merge with other videos, fitting mixed dimensions and orientations into one output canvas (outputs MP4)
 - `speed({required double speed})`: Adjust playback speed (e.g., 0.5 for half speed, 2.0 for double speed) (outputs MP4)
 - `removeAudio()`: Remove audio track (outputs MP4)
 - `rotate({required RotationDegree degree})`: Rotate video by 90, 180, or 270 degrees (outputs MP4)
@@ -178,12 +180,12 @@ The main class for chaining video operations.
 - `compress({VideoResolution resolution = VideoResolution.p720})`: Compress video to standard resolution (outputs MP4)
   - Available resolutions: 360p, 480p, 720p, 1080p, 2160p (4K)
   - Maintains original aspect ratio
-- `flip({required FlipDirection direction})`: Flip video horizontally or vertically (outputs MP4)
+- `flip({required FlipDirection flipDirection})`: Flip video horizontally or vertically (outputs MP4)
 - `export({String? outputPath, void Function(double progress)? onProgress})`: Process all operations and return output path (outputs MP4)
   - `outputPath`: Optional custom path for the output file
   - `onProgress`: Optional callback that receives progress updates (0.0 to 1.0) during export
 - `extractAudio({String? outputPath})`: Extract audio to separate file (outputs M4A on iOS, AAC on Android)
-- `generateThumbnail({required int positionMs, required int quality, int? width, int? height, String? outputPath})`: Generate thumbnail (outputs JPEG)
+- `generateThumbnail({required int positionMs, required int quality, int? width, int? height, bool exactFrame = false, String? outputPath})`: Generate thumbnail (outputs JPEG)
 - `getVideoMetadata()`: Retrieves detailed metadata about the current video file
 - `get currentPath`: Gets the current video path
 
@@ -201,6 +203,8 @@ Add the following permissions to your `AndroidManifest.xml`:
 ### iOS
 
 Requires iOS 13.0 or later.
+
+The iOS plugin supports both CocoaPods and Swift Package Manager. Flutter will use Swift Package Manager when it is enabled in your Flutter project and will continue to fall back to CocoaPods for existing projects.
 
 Add the following keys to your `Info.plist`:
 

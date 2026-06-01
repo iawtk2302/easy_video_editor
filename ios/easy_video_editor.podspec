@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'easy_video_editor'
-  s.version          = '0.0.5'
+  s.version          = '0.1.5'
   s.summary          = 'A lightweight Flutter plugin for video editing without FFmpeg dependency'
   s.description      = <<-DESC
 A lightweight Flutter plugin for video editing without FFmpeg dependency. Trim, merge, adjust speed and more on Android & iOS.
@@ -13,7 +13,7 @@ A lightweight Flutter plugin for video editing without FFmpeg dependency. Trim, 
   s.license          = { :type => 'MIT', :file => '../LICENSE' }
   s.author           = { 'iawtk2302' => 'iawtk2302@gmail.com' }
   s.source           = { :git => 'https://github.com/iawtk2302/easy_video_editor.git', :tag => s.version.to_s }
-  s.source_files = 'Classes/**/*'
+  s.source_files = 'easy_video_editor/Sources/easy_video_editor/**/*.swift'
   s.dependency 'Flutter'
   s.platform = :ios, '12.0'
 

@@ -55,7 +55,7 @@ class TrimVideoCommand(private val context: Context) : Command {
                     result.error("TRIM_ERROR", e.message, null)
                 }
             } finally {
-                OperationManager.cancelOperation(operationId)
+                OperationManager.unregisterOperation(operationId)
                 methodScope.cancel()
             }
         }
