@@ -1,4 +1,5 @@
 import 'package:easy_video_editor/src/enums/enums.dart';
+import 'package:easy_video_editor/src/models/video_frame.dart';
 import 'package:easy_video_editor/src/models/video_metadata.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -93,6 +94,25 @@ class MethodChannelEasyVideoEditor extends EasyVideoEditorPlatform {
       if (width != null) 'width': width,
     });
     return result;
+  }
+
+  @override
+  Future<VideoFrame?> getFrame(String videoPath, int positionMs,
+      {int? height, int? width, bool exactFrame = false}) async {
+    final result = await methodChannel
+        .invokeMapMethod<dynamic, dynamic>('getFrame', <String, dynamic>{
+      'videoPath': videoPath,
+      'positionMs': positionMs,
+      'exactFrame': exactFrame,
+      if (height != null) 'height': height,
+      if (width != null) 'width': width,
+    });
+
+    if (result == null) {
+      return null;
+    }
+
+    return VideoFrame.fromMap(result);
   }
 
   @override

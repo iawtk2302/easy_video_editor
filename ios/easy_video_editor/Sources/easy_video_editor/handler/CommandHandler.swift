@@ -10,6 +10,7 @@ enum MethodName: String {
     case cropVideo = "cropVideo"
     case rotateVideo = "rotateVideo"
     case generateThumbnail = "generateThumbnail"
+    case getFrame = "getFrame"
     case compressVideo = "compressVideo"
     case cancelOperation = "cancelOperation"
     case getVideoMetadata = "getVideoMetadata"
@@ -29,6 +30,7 @@ class CommandHandler {
             .cropVideo: CropVideoCommand(),
             .rotateVideo: RotateVideoCommand(),
             .generateThumbnail: GenerateThumbnailCommand(),
+            .getFrame: GetFrameCommand(),
             .compressVideo: CompressVideoCommand(),
             .cancelOperation: CancelOperationCommand(),
             .getVideoMetadata: GetVideoMetadataCommand(),

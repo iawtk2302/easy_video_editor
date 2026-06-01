@@ -1023,6 +1023,102 @@ class VideoUtils {
             }
         }
 
+        suspend fun getFrame(
+            videoPath: String,
+            positionMs: Long,
+            width: Int? = null,
+            height: Int? = null,
+            exactFrame: Boolean = false
+        ): Map<String, Any> = withContext(Dispatchers.IO) {
+            require(File(videoPath).exists()) { "Video file does not exist" }
+            require(positionMs >= 0) { "Position must be non-negative" }
+            width?.let { require(it > 0) { "Width must be positive" } }
+            height?.let { require(it > 0) { "Height must be positive" } }
+
+            val retriever = MediaMetadataRetriever().apply { setDataSource(videoPath) }
+            return@withContext try {
+                val option = if (exactFrame)
+                    MediaMetadataRetriever.OPTION_CLOSEST
+                else
+                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+
+                val bitmap: Bitmap = when {
+                    Build.VERSION.SDK_INT >= 27 && (width != null || height != null) -> {
+                        val primary = width ?: height!!
+                        val secondary = Int.MAX_VALUE
+                        retriever.getScaledFrameAtTime(
+                            positionMs * 1000,
+                            option,
+                            primary,
+                            secondary
+                        ) ?: throw VideoException("Failed to extract frame")
+                    }
+
+                    else -> {
+                        retriever.getFrameAtTime(
+                            positionMs * 1000,
+                            option
+                        ) ?: throw VideoException("Failed to extract frame")
+                    }
+                }
+
+                val finalBitmap: Bitmap = when {
+                    width != null && height != null ->
+                        Bitmap.createScaledBitmap(bitmap, width, height, false)
+
+                    width != null && (Build.VERSION.SDK_INT < 27 || height == null) -> {
+                        val newH = (bitmap.height * width / bitmap.width.toFloat()).roundToInt()
+                        Bitmap.createScaledBitmap(bitmap, width, newH, false)
+                    }
+
+                    height != null && (Build.VERSION.SDK_INT < 27 || width == null) -> {
+                        val newW = (bitmap.width * height / bitmap.height.toFloat()).roundToInt()
+                        Bitmap.createScaledBitmap(bitmap, newW, height, false)
+                    }
+
+                    else -> bitmap
+                }
+
+                val pixels = IntArray(finalBitmap.width * finalBitmap.height)
+                finalBitmap.getPixels(
+                    pixels,
+                    0,
+                    finalBitmap.width,
+                    0,
+                    0,
+                    finalBitmap.width,
+                    finalBitmap.height
+                )
+
+                val bytes = ByteArray(pixels.size * 4)
+                pixels.forEachIndexed { index, pixel ->
+                    val offset = index * 4
+                    bytes[offset] = ((pixel shr 16) and 0xff).toByte()
+                    bytes[offset + 1] = ((pixel shr 8) and 0xff).toByte()
+                    bytes[offset + 2] = (pixel and 0xff).toByte()
+                    bytes[offset + 3] = ((pixel ushr 24) and 0xff).toByte()
+                }
+
+                val frame = mapOf(
+                    "bytes" to bytes,
+                    "width" to finalBitmap.width,
+                    "height" to finalBitmap.height,
+                    "positionMs" to positionMs
+                )
+
+                if (finalBitmap != bitmap) finalBitmap.recycle()
+                if (bitmap != finalBitmap) bitmap.recycle()
+
+                frame
+            } catch (e: OutOfMemoryError) {
+                throw VideoException("Out of memory while extracting frame", e)
+            } catch (e: Exception) {
+                throw VideoException("Error extracting frame: ${e.message}", e)
+            } finally {
+                retriever.release()
+            }
+        }
+
 
         suspend fun flipVideo(context: Context, videoPath: String, flipDirection: String): String {
             // File operations on IO thread

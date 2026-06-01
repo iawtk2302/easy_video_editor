@@ -121,7 +121,7 @@ class VideoUtils {
         let renderSize = mergeRenderSize(for: videoTracks)
         let videoComposition = AVMutableVideoComposition()
         videoComposition.renderSize = renderSize
-        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+        videoComposition.frameDuration = frameDuration(for: videoTracks)
         videoComposition.renderScale = 1.0
 
         let composition = AVMutableComposition()
@@ -368,7 +368,7 @@ class VideoUtils {
             width: naturalSize.width * CGFloat(width),
             height: naturalSize.height * CGFloat(height)
         )
-        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+        videoComposition.frameDuration = frameDuration(for: videoTrack)
         
         let instruction = AVMutableVideoCompositionInstruction()
         instruction.timeRange = CMTimeRange(start: .zero, duration: asset.duration)
@@ -457,7 +457,7 @@ class VideoUtils {
         videoComposition.renderSize = CGSize(width: finalWidth, height: finalHeight)
 
         // Set up video composition parameters
-        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+        videoComposition.frameDuration = frameDuration(for: videoTrack)
         videoComposition.renderScale = 1.0
 
         let instruction = AVMutableVideoCompositionInstruction()
@@ -513,7 +513,7 @@ class VideoUtils {
 
         // Prepare video composition with flip transform
         let videoComposition = AVMutableVideoComposition()
-        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+        videoComposition.frameDuration = frameDuration(for: videoTrack)
 
         let instruction = AVMutableVideoCompositionInstruction()
         instruction.timeRange = CMTimeRange(start: .zero, duration: asset.duration)
@@ -647,7 +647,7 @@ class VideoUtils {
         // Create video composition
         let videoComposition = AVMutableVideoComposition()
         videoComposition.renderSize = cropRect.size
-        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+        videoComposition.frameDuration = frameDuration(for: videoTrack)
         videoComposition.instructions = [instruction]
         
         // Export
@@ -874,8 +874,128 @@ class VideoUtils {
             throw VideoError.thumbnailGenerationFailed
         }
     }
+
+    // MARK: - Get Raw Frame
+    static func getFrame(videoPath: String, positionMs: Int64, width: Int? = nil, height: Int? = nil, exactFrame: Bool = false) throws -> [String: Any] {
+        guard FileManager.default.fileExists(atPath: videoPath) else {
+            throw VideoError.fileNotFound
+        }
+        if let width = width {
+            guard width > 0 else {
+                throw VideoError.invalidParameters
+            }
+        }
+        if let height = height {
+            guard height > 0 else {
+                throw VideoError.invalidParameters
+            }
+        }
+
+        let asset = AVAsset(url: URL(fileURLWithPath: videoPath))
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+
+        if exactFrame {
+            generator.requestedTimeToleranceBefore = .zero
+            generator.requestedTimeToleranceAfter = .zero
+            if positionMs < 10 {
+                generator.requestedTimeToleranceAfter = CMTime(value: 10, timescale: 1000)
+            }
+        } else {
+            generator.requestedTimeToleranceBefore = .positiveInfinity
+            generator.requestedTimeToleranceAfter = .positiveInfinity
+        }
+
+        if width != nil || height != nil {
+            switch (width, height) {
+            case let (w?, h?):
+                generator.maximumSize = CGSize(width: w, height: h)
+            case let (w?, nil):
+                generator.maximumSize = CGSize(width: CGFloat(w), height: 0.0)
+            case let (nil, h?):
+                generator.maximumSize = CGSize(width: 0.0, height: CGFloat(h))
+            default:
+                break
+            }
+        }
+
+        let time = CMTimeMake(value: positionMs, timescale: 1000)
+        let duration = asset.duration.toMilliseconds
+        guard positionMs >= 0 && positionMs <= duration else {
+            throw VideoError.invalidTimeRange
+        }
+
+        do {
+            var actual = CMTime.zero
+            let imageRef = try generator.copyCGImage(at: time, actualTime: &actual)
+            let frameWidth = imageRef.width
+            let frameHeight = imageRef.height
+            let bytesPerPixel = 4
+            let bytesPerRow = frameWidth * bytesPerPixel
+            var bytes = [UInt8](repeating: 0, count: frameHeight * bytesPerRow)
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+
+            let drawSucceeded = bytes.withUnsafeMutableBytes { buffer -> Bool in
+                guard let baseAddress = buffer.baseAddress,
+                      let context = CGContext(
+                        data: baseAddress,
+                        width: frameWidth,
+                        height: frameHeight,
+                        bitsPerComponent: 8,
+                        bytesPerRow: bytesPerRow,
+                        space: colorSpace,
+                        bitmapInfo: bitmapInfo
+                      ) else {
+                    return false
+                }
+
+                context.draw(imageRef, in: CGRect(x: 0, y: 0, width: frameWidth, height: frameHeight))
+                return true
+            }
+
+            guard drawSucceeded else {
+                throw VideoError.thumbnailGenerationFailed
+            }
+
+            return [
+                "bytes": Data(bytes),
+                "width": frameWidth,
+                "height": frameHeight,
+                "positionMs": positionMs
+            ]
+        } catch {
+            throw VideoError.thumbnailGenerationFailed
+        }
+    }
     
     // MARK: - Helper Methods
+    private static func frameDuration(for tracks: [AVAssetTrack]) -> CMTime {
+        let frameRates = tracks.map { $0.nominalFrameRate }.filter { $0.isFinite && $0 > 0 }
+        guard let frameRate = frameRates.max() else {
+            return CMTime(value: 1, timescale: 30)
+        }
+
+        return frameDuration(forFrameRate: frameRate)
+    }
+
+    private static func frameDuration(for track: AVAssetTrack) -> CMTime {
+        guard track.nominalFrameRate.isFinite && track.nominalFrameRate > 0 else {
+            return CMTime(value: 1, timescale: 30)
+        }
+
+        return frameDuration(forFrameRate: track.nominalFrameRate)
+    }
+
+    private static func frameDuration(forFrameRate frameRate: Float) -> CMTime {
+        let roundedFrameRate = frameRate.rounded()
+        if abs(frameRate - roundedFrameRate) < 0.001 {
+            return CMTime(value: 1, timescale: CMTimeScale(roundedFrameRate))
+        }
+
+        return CMTime(seconds: 1.0 / Double(frameRate), preferredTimescale: 60000)
+    }
+
     private static func export(composition: AVComposition, outputURL: URL, videoComposition: AVVideoComposition? = nil, workItem: DispatchWorkItem? = nil) throws -> String {
         guard let exportSession = AVAssetExportSession(
             asset: composition,

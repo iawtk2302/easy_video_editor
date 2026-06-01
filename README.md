@@ -23,6 +23,7 @@ A powerful Flutter plugin for video editing operations with a simple, chainable 
   - Compress videos to standard resolutions (360p to 4K)
   - Maintains aspect ratio while resizing
 - 🖼️ **Thumbnail Generation**: Create thumbnails from video frames
+- 🧩 **Raw Frame Extraction**: Read RGBA8888 pixels from a video frame
 - 📊 **Video Metadata**: Retrieve detailed information about video files
 - 🔗 **Builder Pattern API**: Chain operations for complex video editing
 - 📱 **Platform Support**: Works on both Android and iOS
@@ -34,7 +35,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  easy_video_editor: ^0.1.5
+  easy_video_editor: ^0.1.6
 ```
 
 Or install via command line:
@@ -88,7 +89,7 @@ final editor = VideoEditorBuilder(videoPath: '/path/to/video.mp4')
   .crop(aspectRatio: VideoAspectRatio.ratio16x9)
 
   // Rotate video
-  .rotate(degree: RotationDegree.d90);
+  .rotate(degree: RotationDegree.d90)
 
   // Flip video
   .flip(flipDirection: FlipDirection.horizontal);
@@ -112,6 +113,19 @@ final thumbnailPath = await editor.generateThumbnail(
   exactFrame: true, // optional, request exact-frame extraction when supported
   outputPath: '/path/to/thumbnail.jpg' // Optional output path
 );
+
+// Extract raw RGBA8888 frame pixels
+final frame = await editor.getFrame(
+  positionMs: 2000,
+  width: 320, // optional
+  height: 180, // optional
+  exactFrame: true, // optional, request closest exact frame when supported
+);
+
+if (frame != null) {
+  print('Frame: ${frame.width}x${frame.height}');
+  print('Pixel bytes: ${frame.bytes.length}');
+}
 
 // Get video metadata
 final metadata = await editor.getVideoMetadata();
@@ -186,6 +200,7 @@ The main class for chaining video operations.
   - `onProgress`: Optional callback that receives progress updates (0.0 to 1.0) during export
 - `extractAudio({String? outputPath})`: Extract audio to separate file (outputs M4A on iOS, AAC on Android)
 - `generateThumbnail({required int positionMs, required int quality, int? width, int? height, bool exactFrame = false, String? outputPath})`: Generate thumbnail (outputs JPEG)
+- `getFrame({required int positionMs, int? width, int? height, bool exactFrame = false})`: Extract raw RGBA8888 frame pixels at the requested video position
 - `getVideoMetadata()`: Retrieves detailed metadata about the current video file
 - `get currentPath`: Gets the current video path
 
@@ -205,6 +220,8 @@ Add the following permissions to your `AndroidManifest.xml`:
 Requires iOS 13.0 or later.
 
 The iOS plugin supports both CocoaPods and Swift Package Manager. Flutter will use Swift Package Manager when it is enabled in your Flutter project and will continue to fall back to CocoaPods for existing projects.
+
+On iOS, transformed video exports such as merge, scale, rotate, flip, and crop preserve the source track frame rate when AVFoundation reports one. If the source frame rate is unavailable, the exporter falls back to 30 fps.
 
 Add the following keys to your `Info.plist`:
 

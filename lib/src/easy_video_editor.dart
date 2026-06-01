@@ -61,6 +61,24 @@ class EasyVideoEditor {
         height: height, width: width, exactFrame: exactFrame);
   }
 
+  /// Extracts raw RGBA8888 frame pixels from a video at the specified position.
+  ///
+  /// [videoPath] is the path to the video file.
+  /// [positionMs] is the position in milliseconds where the frame should be taken.
+  /// [height] optional height of the returned frame in pixels.
+  /// [width] optional width of the returned frame in pixels.
+  /// [exactFrame] requests the closest exact frame instead of a nearby keyframe.
+  Future<VideoFrame?> getFrame(String videoPath, int positionMs,
+      {int? height, int? width, bool exactFrame = false}) {
+    return EasyVideoEditorPlatform.instance.getFrame(
+      videoPath,
+      positionMs,
+      height: height,
+      width: width,
+      exactFrame: exactFrame,
+    );
+  }
+
   /// Compresses a video by adjusting its resolution and bitrate.
   ///
   /// [videoPath] is the path to the video file.

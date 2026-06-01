@@ -1,5 +1,6 @@
 import 'package:easy_video_editor/src/enums/enums.dart';
 import 'package:easy_video_editor/src/models/video_metadata.dart';
+import 'package:easy_video_editor/src/models/video_frame.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'easy_video_editor_method_channel.dart';
@@ -118,6 +119,20 @@ abstract class EasyVideoEditorPlatform extends PlatformInterface {
       String videoPath, int positionMs, int quality,
       {int? height, int? width, bool exactFrame = false}) {
     throw UnimplementedError('generateThumbnail() has not been implemented.');
+  }
+
+  /// Extracts raw RGBA8888 frame pixels from a video at the specified position.
+  ///
+  /// [videoPath] is the path to the source video file.
+  /// [positionMs] is the position in milliseconds where the frame should be taken.
+  /// [height] optional height of the returned frame in pixels.
+  /// [width] optional width of the returned frame in pixels.
+  /// [exactFrame] requests the closest exact frame instead of a nearby keyframe.
+  ///
+  /// Returns the raw frame data, or null if the operation fails.
+  Future<VideoFrame?> getFrame(String videoPath, int positionMs,
+      {int? height, int? width, bool exactFrame = false}) {
+    throw UnimplementedError('getFrame() has not been implemented.');
   }
 
   /// Compresses a video with specified quality settings.

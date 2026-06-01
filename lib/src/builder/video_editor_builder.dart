@@ -321,6 +321,26 @@ class VideoEditorBuilder {
     return result;
   }
 
+  /// Extracts raw RGBA8888 frame pixels from the current video.
+  ///
+  /// [positionMs] Time position in milliseconds.
+  /// [height] Optional height of the returned frame.
+  /// [width] Optional width of the returned frame.
+  Future<VideoFrame?> getFrame({
+    required int positionMs,
+    int? height,
+    int? width,
+    bool exactFrame = false,
+  }) {
+    return _editor.getFrame(
+      _videoPath,
+      positionMs,
+      height: height,
+      width: width,
+      exactFrame: exactFrame,
+    );
+  }
+
   /// Retrieves metadata information about the current video file.
   ///
   /// Returns a [VideoMetadata] object containing information about the video:

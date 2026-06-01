@@ -1,3 +1,8 @@
+## 0.1.6
+
+- Add `getFrame` API to extract raw RGBA8888 video frame pixels on Android and iOS.
+- Preserve the source video frame rate on iOS when exporting transformed videos such as merge, scale, rotate, flip, and crop.
+
 ## 0.1.5
 
 - Add Swift Package Manager support for the iOS plugin while keeping CocoaPods compatibility.
