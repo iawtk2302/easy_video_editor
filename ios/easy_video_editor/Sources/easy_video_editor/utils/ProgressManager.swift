@@ -1,3 +1,4 @@
+import Foundation
 import Flutter
 
 // TEMPORARY: Will be removed when ProgressManager.swift is properly added to the Xcode project

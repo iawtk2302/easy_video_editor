@@ -1,3 +1,4 @@
+import Foundation
 class OperationManager {
     static let shared = OperationManager()
     
