@@ -862,7 +862,8 @@ class VideoUtils {
             let imageRef = try generator.copyCGImage(at: time, actualTime: &actual)
             var image = UIImage(cgImage: imageRef)
             
-            let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("thumbnail_\(Date().timeIntervalSince1970).jpg")
+            let outputURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("thumbnail_\(UUID().uuidString).jpg")
             
             guard let data = image.jpegData(compressionQuality: CGFloat(quality) / 100),
                   (try? data.write(to: outputURL)) != nil else {
