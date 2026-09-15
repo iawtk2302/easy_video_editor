@@ -17,7 +17,8 @@ class FlipVideoCommand: Command {
 
         let operationId = OperationManager.shared.generateOperationId()
 
-        lazy var workItem: DispatchWorkItem = DispatchWorkItem {
+        var workItem: DispatchWorkItem!
+        workItem = DispatchWorkItem {
             // Check if operation was canceled before starting
             if workItem.isCancelled {
                 DispatchQueue.main.async {
