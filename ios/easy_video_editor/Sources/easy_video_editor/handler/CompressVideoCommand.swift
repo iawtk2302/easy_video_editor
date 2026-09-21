@@ -17,7 +17,9 @@ class CompressVideoCommand: Command {
         
         let operationId = OperationManager.shared.generateOperationId()
         
-        lazy var workItem: DispatchWorkItem = DispatchWorkItem {
+        var workItemRef: DispatchWorkItem?
+        let workItem = DispatchWorkItem {
+            guard let workItem = workItemRef else { return }
             // Check if operation was canceled before starting
             if workItem.isCancelled {
                 DispatchQueue.main.async {
@@ -53,6 +55,8 @@ class CompressVideoCommand: Command {
 
             OperationManager.shared.unregisterOperation(operationId)
         }
+
+        workItemRef = workItem
 
         // Register work item with operation manager for possible cancellation
         OperationManager.shared.registerOperation(id: operationId, workItem: workItem)

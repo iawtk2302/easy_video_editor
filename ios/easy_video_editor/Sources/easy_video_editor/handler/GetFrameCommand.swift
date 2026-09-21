@@ -25,7 +25,9 @@ class GetFrameCommand: Command {
 
         let operationId = OperationManager.shared.generateOperationId()
 
-        lazy var workItem: DispatchWorkItem = DispatchWorkItem {
+        var workItemRef: DispatchWorkItem?
+        let workItem = DispatchWorkItem {
+            guard let workItem = workItemRef else { return }
             if workItem.isCancelled {
                 DispatchQueue.main.async {
                     result(nil)
@@ -64,6 +66,8 @@ class GetFrameCommand: Command {
 
             OperationManager.shared.unregisterOperation(operationId)
         }
+
+        workItemRef = workItem
 
         OperationManager.shared.registerOperation(id: operationId, workItem: workItem)
         DispatchQueue.global(qos: .userInitiated).async(execute: workItem)

@@ -22,7 +22,9 @@ class TrimVideoCommand: Command {
         // Create operation ID
         let operationId = OperationManager.shared.generateOperationId()
 
-        lazy var workItem: DispatchWorkItem = DispatchWorkItem {
+        var workItemRef: DispatchWorkItem?
+        let workItem = DispatchWorkItem {
+            guard let workItem = workItemRef else { return }
             // Check if operation was canceled before starting
             if workItem.isCancelled {
                 DispatchQueue.main.async {
@@ -59,6 +61,8 @@ class TrimVideoCommand: Command {
 
             OperationManager.shared.unregisterOperation(operationId)
         }
+
+        workItemRef = workItem
 
         // Register workItem to be able to cancel
         OperationManager.shared.registerOperation(id: operationId, workItem: workItem)

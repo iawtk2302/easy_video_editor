@@ -27,7 +27,9 @@ class GenerateThumbnailCommand: Command {
         
         let operationId = OperationManager.shared.generateOperationId()
         
-        lazy var workItem: DispatchWorkItem = DispatchWorkItem { 
+        var workItemRef: DispatchWorkItem?
+        let workItem = DispatchWorkItem {
+            guard let workItem = workItemRef else { return }
             if workItem.isCancelled {
                 DispatchQueue.main.async {
                     result(nil)
@@ -65,6 +67,8 @@ class GenerateThumbnailCommand: Command {
 
             OperationManager.shared.unregisterOperation(operationId)
         }
+
+        workItemRef = workItem
 
         // Register operation
         OperationManager.shared.registerOperation(id: operationId, workItem: workItem)

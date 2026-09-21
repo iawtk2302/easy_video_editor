@@ -19,7 +19,9 @@ class CropVideoCommand: Command {
         let operationId = OperationManager.shared.generateOperationId()
 
         // Declare lazy workItem to avoid early capture
-        lazy var workItem: DispatchWorkItem = DispatchWorkItem {
+        var workItemRef: DispatchWorkItem?
+        let workItem = DispatchWorkItem {
+            guard let workItem = workItemRef else { return }
             // Check if operation was canceled before starting
             if workItem.isCancelled {
                 DispatchQueue.main.async {
@@ -55,6 +57,8 @@ class CropVideoCommand: Command {
 
             OperationManager.shared.unregisterOperation(operationId)
         }
+
+        workItemRef = workItem
 
         // Register work item with operation manager for possible cancellation
         OperationManager.shared.registerOperation(id: operationId, workItem: workItem)
