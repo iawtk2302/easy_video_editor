@@ -1002,7 +1002,7 @@ class VideoUtils {
                     else -> bitmap   // no resize needed
                 }
 
-                val outputFile = File(context.cacheDir, "thumbnail_${System.currentTimeMillis()}.jpg").apply {
+                val outputFile = File(context.cacheDir, "thumbnail_${UUID.randomUUID()}.jpg").apply {
                     if (exists()) delete()
                 }
 
