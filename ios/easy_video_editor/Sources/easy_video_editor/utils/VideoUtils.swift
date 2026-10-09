@@ -94,6 +94,26 @@ class VideoUtils {
         exportSession.outputURL = outputURL
         exportSession.outputFileType = .mp4
         exportSession.timeRange = timeRange
+
+        // Force a re-encode of the video track.
+        //
+        // Without a videoComposition the export takes the passthrough path
+        // and copies the source's compressed samples verbatim. A timeRange
+        // that does not start on a sync sample then yields a file whose
+        // opening frames reference a keyframe that is not in it, and whose
+        // first sync sample sits wherever the next source keyframe fell.
+        // Such a file decodes correctly front to back, so the damage is
+        // easy to miss - but it cannot be seeked back to its own start:
+        // players snap forward to that first sync sample instead, and a
+        // looping player shows only the tail of the clip. How far in that
+        // lands depends on the source GOP length.
+        //
+        // Guarded because trimVideo accepts audio-only assets, for which
+        // AVVideoComposition(propertiesOf:) has no track to size itself
+        // from and the export would fail.
+        if !asset.tracks(withMediaType: .video).isEmpty {
+            exportSession.videoComposition = AVVideoComposition(propertiesOf: asset)
+        }
         
         // Export with cancellation support
         try exportWithCancellation(exportSession: exportSession, workItem: workItem)
