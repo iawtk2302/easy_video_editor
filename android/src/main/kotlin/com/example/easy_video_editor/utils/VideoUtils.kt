@@ -708,43 +708,14 @@ class VideoUtils {
                     .apply { if (exists()) delete() }
             }
 
-            // Get video dimensions
-            val retriever = MediaMetadataRetriever()
-            val (videoWidth, videoHeight) = withContext(Dispatchers.IO) {
-                try {
-                    retriever.setDataSource(videoPath)
-                    val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toFloat() ?: 0f
-                    val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toFloat() ?: 0f
-                    width to height
-                } finally {
-                    retriever.release()
-                }
-            }
-
-            if (videoWidth <= 0f || videoHeight <= 0f) {
-                throw IllegalArgumentException("Could not read video dimensions")
-            }
-
-            // Calculate crop dimensions based on aspect ratio
+            // Media3 hands its effects the frame as DISPLAYED (rotation
+            // applied), so size the crop from the display dimensions. Sized
+            // from the stored ones, a 16:9 crop of a portrait (rotated) clip
+            // came out square.
+            val display = withContext(Dispatchers.IO) { getVideoDisplayDimensions(videoPath) }
             val (targetWidth, targetHeight) = aspectRatio.split(":").map { it.toFloat() }
-            val targetAspectRatio = targetWidth / targetHeight
-            val videoAspectRatio = videoWidth / videoHeight
-
-            // Calculate cropping area (pixels)
-            val cropWidthPx: Float
-            val cropHeightPx: Float
-            if (videoAspectRatio >= targetAspectRatio) {
-                //Video wider than target ->Maintain height, cut left and right
-                cropHeightPx = videoHeight
-                cropWidthPx = videoHeight * targetAspectRatio
-            } else {
-                //Video higher than target ->Maintain width, cut up and down
-                cropWidthPx = videoWidth
-                cropHeightPx = videoWidth / targetAspectRatio
-            }
-
-            val widthFrac = cropWidthPx / videoWidth
-            val heightFrac = cropHeightPx / videoHeight
+            val (widthFrac, heightFrac) =
+                centredCropFractions(display, targetWidth / targetHeight)
             val leftNdc = -widthFrac
             val rightNdc = widthFrac
             val bottomNdc = -heightFrac
@@ -864,7 +835,7 @@ class VideoUtils {
                             emptyList(),
                             listOf(
                                 ScaleAndRotateTransformation.Builder()
-                                    .setRotationDegrees(rotationDegrees)
+                                    .setRotationDegrees(media3RotationDegrees(rotationDegrees))
                                     .build()
                             )
                         )
@@ -1231,6 +1202,32 @@ class VideoException : Exception {
 }
 
 data class VideoDimensions(val width: Int, val height: Int)
+
+/**
+ * The plugin's rotation is CLOCKWISE (as iOS rotates), but Media3's
+ * [ScaleAndRotateTransformation] rotates COUNTER-clockwise: these are the
+ * degrees to pass it. Passed straight through, a 90° turn went the wrong way
+ * on Android.
+ */
+internal fun media3RotationDegrees(clockwiseDegrees: Float): Float =
+    (360f - (clockwiseDegrees % 360f + 360f) % 360f) % 360f
+
+/**
+ * The centred crop of a [display] frame to [aspectRatio] (width / height), as
+ * the fraction of each side kept: the side too long for the ratio is cut, the
+ * other kept whole. [display] must be the frame as shown (rotation applied).
+ */
+internal fun centredCropFractions(
+    display: VideoDimensions,
+    aspectRatio: Float
+): Pair<Float, Float> {
+    val displayAspect = display.width.toFloat() / display.height.toFloat()
+    return if (displayAspect >= aspectRatio) {
+        (aspectRatio / displayAspect) to 1f
+    } else {
+        1f to (displayAspect / aspectRatio)
+    }
+}
 
 data class FittedVideoFrame(
     val width: Int,
