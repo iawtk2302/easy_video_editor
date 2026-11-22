@@ -119,8 +119,16 @@ class VideoUtils {
             
             return withContext(Dispatchers.Main) {
                 suspendCancellableCoroutine { continuation ->
-                    // Define video compression strategy based on targetHeight
-                    val videoTrackStrategy = DefaultVideoStrategy.atMost(targetHeight).build()
+                    // Define video compression strategy based on targetHeight.
+                    // atMost(height) only limits the resolution: without an
+                    // explicit bitrate the transcoder keeps the SOURCE bitrate,
+                    // so the output barely shrinks. Cap the bitrate (scaled with
+                    // height, about 1.25 Mbps at 480p) and the frame rate at 30.
+                    val targetBitrate = targetHeight.toLong() * 2600L
+                    val videoTrackStrategy = DefaultVideoStrategy.atMost(targetHeight)
+                        .bitRate(targetBitrate)
+                        .frameRate(30)
+                        .build()
                     
                     // Configure audio strategy - always include audio for the simple version
                     val audioTrackStrategy = DefaultAudioStrategy.builder()
